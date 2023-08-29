@@ -110,7 +110,6 @@ def fetch_data():
 
     return jsonify(result)
 
-
 @app.route("/fetch_model_names", methods=['GET'])
 def fetch_model_data():
     collec = db['model_list']
@@ -118,9 +117,7 @@ def fetch_model_data():
 
     result = []
     for d in data:
-        result.append({
-            'name': d['name'],
-        })
+        result.append(d['name'])
 
     return jsonify(result)
 
