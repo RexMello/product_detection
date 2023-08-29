@@ -12,13 +12,12 @@ collec = db['model_data']
 data_list = []
 model = input('Enter model name: ')
 
-while True:
-    item = input('Enter item name: ')
-    if item == 'q':
-        break
-    value = input('Enter item value: ')
+for i in range(22):
+    
+    i = str(i)
+    name = input('Enter value for '+i+': ')
 
-    dataa = {'detection_id':item,'name':item,'value':value,'ModelName':model}
+    dataa = {'detection_id':i,'name':name,'value':i,'ModelName':model}
     data_list.append(dataa)
 
 if data_list != []:
