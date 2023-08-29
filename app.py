@@ -96,12 +96,6 @@ def run_cheating_module():
     
     return jsonify({'Products':list_of_products})
 
-
-@app.route("/")
-def hello_world():
-    return "Hello World!"
-
-
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
     collec = db['model_data']
@@ -115,6 +109,25 @@ def fetch_data():
         })
 
     return jsonify(result)
+
+
+@app.route("/fetch_model_names", methods=['GET'])
+def fetch_model_data():
+    collec = db['model_list']
+    data = collec.find()
+
+    result = []
+    for d in data:
+        result.append({
+            'name': d['name'],
+        })
+
+    return jsonify(result)
+
+
+@app.route("/hello")
+def hello_world():
+    return "Hello World!"
 
 
 if __name__ == "__main__":
