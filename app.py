@@ -1,22 +1,26 @@
-import dns.resolver
-dns.resolver.default_resolver=dns.resolver.Resolver(configure=False)
-dns.resolver.default_resolver.nameservers=['8.8.8.8']
-
 import cv2
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from ultralytics import YOLO
 import os
+import certifi
+from flask_cors import CORS
 
-cluster = MongoClient("mongodb+srv://kai:13579007@cluster0.wacwe.mongodb.net/?retryWrites=true&w=majority")
+cluster = MongoClient("mongodb+srv://kai:13579007@cluster0.wacwe.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
+collec = db['model_data']
+data = collec.find()
+
 
 def get_value(data,name):
     for d in data:
         if d['name'] == str(name):
             return d['value']
+    return ''
 
 app = Flask(__name__)
+CORS(app)  # Allow CORS for all routes
+
 def run_inference(model):
     image = cv2.imread('temp.png')
     results = model.predict(image, conf=0.4)
@@ -72,20 +76,11 @@ def run_cheating_module():
     except:
         return jsonify({'Error':'Error running detection'})
 
-
-    try:
-        #Fetching names from database
-        collec = db[model_name]
-        data = collec.find()
-    except:
-        return jsonify({'Error':'Error fetching data from database'})
-
-
     try:
         #Getting relative videos from
         products = []
         for product in list_of_products:
-            products.append(get_value(data,product))
+            products.append(get_value(product))
         
         list_of_products = ''
         for product in products:
@@ -105,6 +100,21 @@ def run_cheating_module():
 @app.route("/")
 def hello_world():
     return "Hello World!"
+
+
+@app.route("/fetch_all_data", methods=['GET'])
+def fetch_data():
+    collec = db['model_data']
+    data = collec.find()
+    result = []
+    for d in data:
+        result.append({
+            'name': d['name'],
+            'value': d['value'],
+            'ModelName': d['ModelName']
+        })
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":
