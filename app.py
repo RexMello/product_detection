@@ -5,14 +5,12 @@ from ultralytics import YOLO
 import os
 import certifi
 from flask_cors import CORS
+from bson import ObjectId
 
 cluster = MongoClient("mongodb+srv://kai:13579007@cluster0.wacwe.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
-collec = db['model_data']
-data = collec.find()
 
-
-def get_value(data,name):
+def get_value(name, data):
     for d in data:
         if d['name'] == str(name):
             return d['value']
@@ -61,9 +59,6 @@ def run_cheating_module():
     if not model_name:
         return jsonify({'Error':'Model name not found'})
     
-    if model_name not in db.list_collection_names():
-        return jsonify({'Error':'No record for such model exist'})
-
     try:
         model = YOLO('model\\'+model_name+'.pt')
     except:
@@ -76,33 +71,37 @@ def run_cheating_module():
     except:
         return jsonify({'Error':'Error running detection'})
 
-    try:
-        #Getting relative videos from
-        products = []
-        for product in list_of_products:
-            products.append(get_value(product))
-        
-        list_of_products = ''
-        for product in products:
-            list_of_products+=', '+str(product)
-        
-        if products!=[]:
-            list_of_products = list_of_products[2:]
-        else:
-            list_of_products = 'No products found'
-        os.remove('temp.png')
-    except:
-        return jsonify({'Error':'There was an error in calculation'})
+    # try:
+    #Getting relative videos from
+    collec = db['model_datas']
+    data = collec.find()
+    
+    products = []
+    for product in list_of_products:
+        products.append(get_value(product, data))
+    
+    list_of_products = ''
+    for product in products:
+        list_of_products+=', '+str(product)
+    
+    if products!=[]:
+        list_of_products = list_of_products[2:]
+    else:
+        list_of_products = 'No products found'
+    os.remove('temp.png')
+    # except:
+        # return jsonify({'Error':'There was an error in calculation'})
     
     return jsonify({'Products':list_of_products})
 
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
-    collec = db['model_data']
+    collec = db['model_datas']
     data = collec.find()
     result = []
     for d in data:
         result.append({
+            'id': str(d['_id']),
             'name': d['name'],
             'value': d['value'],
             'ModelName': d['ModelName']
@@ -121,6 +120,37 @@ def fetch_model_data():
 
     return jsonify(result)
 
+@app.route("/fetch_single_data/<string:id_value>", methods=['GET'])
+def get_single_data(id_value):
+    collec = db['model_datas']
+    output = collec.find_one({'_id':ObjectId(id_value)})
+    if output:
+        output['_id'] = str(output['_id'])
+        return (output)
+
+    return jsonify({'detail':'not found'})
+
+@app.route("/update_data/<string:id_value>/<string:new_value>", methods=['PATCH'])
+def update_user_data(id_value,new_value):
+    collec = db['model_datas']
+    print('VALUE ',new_value)
+
+    output = collec.find_one({'_id':ObjectId(id_value)})
+    if not output:
+        return jsonify({'Error':'Invalid id'})
+
+    # Define the filter to identify the document to be updated
+    filter_criteria = {"_id": ObjectId(id_value)}
+
+    # Define the update operation
+    update_operation = {"$set": {"value": new_value}}
+
+    # Perform the update
+    result = collec.update_one(filter_criteria, update_operation)
+
+    print("Modified documents:", result.modified_count)
+
+    return jsonify({'detail':'success'})
 
 @app.route("/hello")
 def hello_world():
