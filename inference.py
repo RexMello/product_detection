@@ -3,7 +3,7 @@ import cv2
 
 def run_inference():
     model = YOLO('model/CakeShop.pt')
-    image = cv2.imread('relative_images\\1.jpg')
+    image = cv2.imread('temp.png')
     results = model.predict(image, conf=0.3)
     
     things_found = []

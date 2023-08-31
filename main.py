@@ -54,16 +54,14 @@ def run_inference(model):
 
     return image, things_found
 
-@app.route('/detect_products/<string:image>', methods=['GET'])
-def run_cheating_module(image):
+@app.route('/detect_products/<string:model_name>/<string:image>', methods=['GET'])
+def run_cheating_module(image,model_name):
     # check if request has file part
     if not image:
         return jsonify({'Error':'No image found'})
 
     image = image.replace('!','/')
-
     image = image.split('base64,')[1]
-    #decode base64 string data
     decoded_data=base64.b64decode((image))
 
     #write the decoded data back to original format in  file
@@ -73,7 +71,6 @@ def run_cheating_module(image):
     #Loading model
     
     #Loading model
-    model_name = request.form.get('ModelName')
     if not model_name:
         return jsonify({'Error':'Model name not found'})
     
@@ -103,17 +100,19 @@ def run_cheating_module(image):
     data = collec.find()
     
     products = []
+
     for product in list_of_products:
         products.append(get_value(product, data))
     
     list_of_products = ''
     for product in products:
         list_of_products+=', '+str(product)
-    
+
     if products!=[]:
         list_of_products = list_of_products[2:]
     else:
         list_of_products = 'No products found'
+
     os.remove('temp.png')
     
     return jsonify({'Products':list_of_products})
