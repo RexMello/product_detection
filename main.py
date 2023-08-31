@@ -6,6 +6,7 @@ import os
 import certifi
 from flask_cors import CORS
 from bson import ObjectId
+import base64
 
 try:
     os.remove('model_name.txt')
@@ -22,7 +23,7 @@ db = cluster["product_data"]
 
 def get_value(name, data):
     for d in data:
-        if d['name'] == str(name):
+        if d['detection_id'] == str(name):
             return d['value']
     return ''
 
@@ -53,16 +54,23 @@ def run_inference(model):
 
     return image, things_found
 
-@app.route('/detect_products', methods=['POST'])
-def run_cheating_module():
+@app.route('/detect_products/<string:image>', methods=['GET'])
+def run_cheating_module(image):
     # check if request has file part
-    if 'image' not in request.files:
+    if not image:
         return jsonify({'Error':'No image found'})
 
-    file = request.files['image']
+    image = image.replace('!','/')
 
-    # save video file to disk
-    file.save('temp.png')
+    image = image.split('base64,')[1]
+    #decode base64 string data
+    decoded_data=base64.b64decode((image))
+
+    #write the decoded data back to original format in  file
+    img_file = open('temp.png', 'wb')
+    img_file.write(decoded_data)
+    img_file.close()    
+    #Loading model
     
     #Loading model
     model_name = request.form.get('ModelName')
@@ -75,6 +83,10 @@ def run_cheating_module():
 
     try:
         if previous_model != model_name:
+            
+            with open('model_name.txt','w') as w:
+                w.write(model_name)
+
             previous_model = model_name
             model = YOLO('model\\'+model_name+'.pt')
     except:
@@ -142,7 +154,7 @@ def get_single_data(id_value):
 
     return jsonify({'detail':'not found'})
 
-@app.route("/update_data/<string:id_value>/<string:new_value>", methods=['POST'])
+@app.route("/update_data/<string:id_value>/<string:new_value>", methods=['GET'])
 def update_user_data(id_value,new_value):
     collec = db['model_datas']
     print('VALUE ',new_value)
