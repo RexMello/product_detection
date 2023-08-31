@@ -28,7 +28,6 @@ def get_value(name, data):
 
 app = Flask(__name__)
 CORS(app)  # Allow CORS for all routes
-app.config['SECRET_KEY'] = 'BANKAI'
 
 def run_inference(model):
     image = cv2.imread('temp.png')
@@ -164,36 +163,6 @@ def update_user_data(id_value,new_value):
     print("Modified documents:", result.modified_count)
 
     return jsonify({'detail':'success'})
-
-@app.route("/signup", methods=['POST'])
-def sign_up_user():
-    user_model_name = request.form.get('model')
-    user_email = request.form.get('email')
-    user_password = request.form.get('password')
-    
-    collec = db['users']
-    output = collec.insert_one({'email':user_email,'password':user_password,'model':user_model_name})
-
-    if not output:
-        return jsonify({'Error':'Error signing up'})
-        
-    return jsonify({'detail':'Signup successfull'})
-
-@app.route("/login", methods=['POST'])
-def log_in_user():
-    user_email = request.form.get('email')
-    user_password = request.form.get('password')
-
-    if not user_email or user_password:
-        return jsonify({'Error':'Both fields required'})
-    
-    collec = db['users']
-    output = collec.find({'email':user_email,'password':user_password})
-
-    if not output:
-        return jsonify({'Error':'No user found'})
-    
-    return jsonify({'detail':'User found'})
 
 @app.route("/hello")
 def hello_world():
