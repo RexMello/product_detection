@@ -1,3 +1,3 @@
-import cv2
+x = 'wq'
 
-img = cv2.resize(cv2.imread(''),(500,500))
+x.capitalize()

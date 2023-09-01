@@ -56,6 +56,7 @@ def run_inference(model):
 
 @app.route('/detect_products/<string:model_name>/<string:image>', methods=['GET'])
 def run_cheating_module(image,model_name):
+    global model
     # check if request has file part
     if not image:
         return jsonify({'Error':'No image found'})
@@ -90,11 +91,9 @@ def run_cheating_module(image,model_name):
         return jsonify({'Error':'Model with such name does not exist'})
 
 
-    try:
         #Running detection on given image
-        img,list_of_products = run_inference(model)
-    except:
-        return jsonify({'Error':'Error running detection'})
+    img,list_of_products = run_inference(model)
+        # return jsonify({'Error':'Error running detection'})
 
     collec = db['model_datas']
     data = collec.find()
@@ -174,6 +173,25 @@ def update_user_data(id_value,new_value):
     print("Modified documents:", result.modified_count)
 
     return jsonify({'detail':'success'})
+
+@app.route("/get_contact_support", methods=['GET'])
+def get_contact():
+    collec = db['contact']
+    output = collec.find()
+
+    res = ''
+    for document in output:
+        for entry in document:
+            if entry == '_id':
+                continue
+
+            res+='   |   '+entry.capitalize()+': '+document[entry]
+        break
+
+    if res != '':
+        res = res[5:]
+
+    return jsonify({'contact':res})
 
 @app.route("/hello")
 def hello_world():
