@@ -1,2 +1,4 @@
-web_dashboard/node_modeules
-web_dashboard/client/node_modules
+.vscode
+__pycache__
+product_detection_venv
+relative_images

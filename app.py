@@ -1,5 +1,5 @@
 import cv2
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify
 from pymongo import MongoClient
 from ultralytics import YOLO
 import os
@@ -18,14 +18,14 @@ with open('model_name.txt','w') as w:
 
 model = None
 
-cluster = MongoClient("mongodb+srv://kai:13579007@cluster0.wacwe.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
+cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
 
 def get_value(name, data):
     for d in data:
-        if d['detection_id'] == str(name):
-            return d['value']
-    return ''
+        if d == str(name):
+            return data[d]['value'], data[d]['name']
+    return '', ''
 
 app = Flask(__name__)
 CORS(app)  # Allow CORS for all routes
@@ -56,6 +56,7 @@ def run_inference(model):
 
 @app.route('/detect_products/<string:model_name>/<string:image>', methods=['GET'])
 def run_cheating_module(image,model_name):
+    global model
     # check if request has file part
     if not image:
         return jsonify({'Error':'No image found'})
@@ -90,32 +91,41 @@ def run_cheating_module(image,model_name):
         return jsonify({'Error':'Model with such name does not exist'})
 
 
-    try:
-        #Running detection on given image
-        img,list_of_products = run_inference(model)
-    except:
-        return jsonify({'Error':'Error running detection'})
+    #Running detection on given image
+    img,list_of_products = run_inference(model)
 
     collec = db['model_datas']
     data = collec.find()
+
+    product_values = {}
+    for d in data:
+        product_values[d['detection_id']] = {'value':d['value'], 'name': d['name']}
     
     products = []
     for product in list_of_products:
-        products.append(get_value(product, data))
+        products.append(get_value(product, product_values))
     
-    list_of_products = ''
-    for product in products:
-        list_of_products+=', '+str(product)
-    
-    if products!=[]:
-        list_of_products = list_of_products[2:]
-    else:
-        list_of_products = 'No products found'
-    os.remove('temp.png')
-    
-    return jsonify({'Products':list_of_products})
+    list_of_products_names = ''
+    list_of_products_values = ''
 
-@app.route("/fetch_all_data", methods=['GET'])
+    for product in products:
+        list_of_products_values+=', '+str(product[0])
+        list_of_products_names+=', '+str(product[1])
+
+    if products!=[]:
+        list_of_products_values = list_of_products_values[2:]
+        list_of_products_names = list_of_products_names[2:]
+    else:
+        list_of_products_values = 'No products found'
+        list_of_products_names = 'No products found'
+
+    cv2.imwrite('output.png',img)
+
+    # os.remove('temp.png')
+    
+    return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
+
+@app.route("/ ", methods=['GET'])
 def fetch_data():
     collec = db['model_datas']
     data = collec.find()
@@ -172,6 +182,25 @@ def update_user_data(id_value,new_value):
     print("Modified documents:", result.modified_count)
 
     return jsonify({'detail':'success'})
+
+@app.route("/get_contact_support", methods=['GET'])
+def get_contact():
+    collec = db['contact']
+    output = collec.find()
+
+    res = ''
+    for document in output:
+        for entry in document:
+            if entry == '_id':
+                continue
+
+            res+='   |   '+entry.capitalize()+': '+document[entry]
+        break
+
+    if res != '':
+        res = res[5:]
+
+    return jsonify({'contact':res})
 
 @app.route("/hello")
 def hello_world():
