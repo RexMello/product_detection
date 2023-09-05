@@ -1,5 +1,5 @@
 import cv2
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from ultralytics import YOLO
 import os
@@ -54,23 +54,26 @@ def run_inference(model):
 
     return image, things_found
 
-@app.route('/detect_products/<string:model_name>/<string:image>', methods=['GET'])
-def run_cheating_module(image,model_name):
+@app.route('/detect_products', methods=['POST'])
+def run_cheating_module():
     global model
-    # check if request has file part
-    if not image:
-        return jsonify({'Error':'No image found'})
+    if 'image' not in request.files:
+        return jsonify({'detail':'Image not found'})
 
-    image = image.replace('!','/')
-    image = image.split('base64,')[1]
-    decoded_data=base64.b64decode((image))
+    file = request.files['image']
 
-    #write the decoded data back to original format in  file
-    img_file = open('temp.png', 'wb')
-    img_file.write(decoded_data)
-    img_file.close()    
-    #Loading model
+    # check if file is empty
+    if file.filename == '':
+        return jsonify({'detail':'Image not selected'})
     
+    try:
+        # save video file to disk
+        file.save('temp.png')
+    except:
+        return jsonify({'detail':'Invalid image type'})
+
+    model_name = request.form.get('ModelName')
+
     #Loading model
     if not model_name:
         return jsonify({'Error':'Model name not found'})
@@ -121,11 +124,11 @@ def run_cheating_module(image,model_name):
 
     cv2.imwrite('output.png',img)
 
-    # os.remove('temp.png')
+    os.remove('temp.png')
     
     return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
 
-@app.route("/ ", methods=['GET'])
+@app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
     collec = db['model_datas']
     data = collec.find()
@@ -149,7 +152,7 @@ def fetch_model_data():
     for d in data:
         result.append(d['name'])
 
-    return jsonify(result)
+    return jsonify({'modelNames':result})
 
 @app.route("/fetch_single_data/<string:id_value>", methods=['GET'])
 def get_single_data(id_value):
