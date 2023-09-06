@@ -6,7 +6,6 @@ import os
 import certifi
 from flask_cors import CORS
 from bson import ObjectId
-import base64
 
 try:
     os.remove('model_name.txt')
@@ -207,7 +206,7 @@ def get_contact():
 
 @app.route("/hello")
 def hello_world():
-    return "Hello World!"
+    return "Hello World! "+str(os.getcwd())
 
 
 if __name__ == "__main__":
