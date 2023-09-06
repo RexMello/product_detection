@@ -7,6 +7,8 @@ import certifi
 from flask_cors import CORS
 from bson import ObjectId
 
+BASE_DIR = os.getcwd()
+
 try:
     os.remove('model_name.txt')
 except:
@@ -84,13 +86,13 @@ def run_cheating_module():
     try:
         if previous_model != model_name:
             
-            with open('model_name.txt','w') as w:
+            with open(BASE_DIR+'/model_name.txt','w') as w:
                 w.write(model_name)
 
             previous_model = model_name
-            model = YOLO('model\\'+model_name+'.pt')
+            model = YOLO(BASE_DIR+'/model/'+model_name+'.pt')
     except:
-        return jsonify({'Error':'Model with such name does not exist'})
+        return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.pt'+' such name does not exist'})
 
 
     #Running detection on given image
