@@ -128,6 +128,52 @@ def run_cheating_module():
     except:
         return jsonify({'Error':'Error running manual stuff'})
 
+@app.route('/detect_products_2', methods=['POST'])
+def run_cheating_module2():
+    if 'image' not in request.files:
+        return jsonify({'detail':'Image not found'})
+
+    file = request.files['image']
+
+    # check if file is empty
+    if file.filename == '':
+        return jsonify({'detail':'Image not selected'})
+    
+    try:
+        # save video file to disk
+        file.save(BASE_DIR+'/temp.png')
+    except:
+        return jsonify({'detail':'Invalid image type'})
+
+    model_name = request.form.get('ModelName')
+
+    #Loading model
+    if not model_name:
+        return jsonify({'Error':'Model name not found'})
+    
+
+    url = "http://54.212.1.25/detect_products"
+
+    # Define the form data parameters
+    form_data = {
+        "ModelName": model_name,
+    }
+
+    files = {
+        "image": ("temp.png", open('temp.png', "rb"))
+    }
+
+    try:
+        response = requests.post(url, data=form_data, files=files)
+
+        if response.status_code == 200:
+            # If the request was successful (status code 200), you can access the response content
+            return response.json()
+        else:
+            return jsonify({'Error':f"Failed to fetch data. Status code: {response.status_code}"})
+    except requests.exceptions.RequestException as e:
+        return jsonify({'Error':"An error occurred: "+e})
+
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
     collec = db['model_datas']
@@ -207,17 +253,6 @@ def get_contact():
 
 @app.route("/hello")
 def hello_world():
-    try:
-        response = requests.get("http://54.212.1.25/get_contact_support")
-        if response.status_code == 200:
-            # If the request was successful (status code 200), you can access the content
-            data = response.text
-            return data
-        else:
-            print(f"Failed to fetch data. Status code: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
-
     return "Hello World! "+str(os.getcwd())
 
 
