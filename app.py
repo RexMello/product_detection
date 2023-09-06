@@ -6,6 +6,7 @@ import os
 import certifi
 from flask_cors import CORS
 from bson import ObjectId
+import requests
 
 BASE_DIR = os.getcwd()
 model = None
@@ -127,9 +128,6 @@ def run_cheating_module():
     except:
         return jsonify({'Error':'Error running manual stuff'})
 
-
-
-
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
     collec = db['model_datas']
@@ -209,6 +207,17 @@ def get_contact():
 
 @app.route("/hello")
 def hello_world():
+    try:
+        response = requests.get("http://54.212.1.25/get_contact_support")
+        if response.status_code == 200:
+            # If the request was successful (status code 200), you can access the content
+            data = response.text
+            return data
+        else:
+            print(f"Failed to fetch data. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+
     return "Hello World! "+str(os.getcwd())
 
 
