@@ -8,16 +8,9 @@ from flask_cors import CORS
 from bson import ObjectId
 
 BASE_DIR = os.getcwd()
-
-try:
-    os.remove('model_name.txt')
-except:
-    pass
-
-with open(BASE_DIR+'/model_name.txt','w') as w:
-    w.write('')
-
 model = None
+loaded_model = ''
+
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
@@ -57,7 +50,7 @@ def run_inference(model):
 
 @app.route('/detect_products', methods=['POST'])
 def run_cheating_module():
-    global model
+    global model, loaded_model
     if 'image' not in request.files:
         return jsonify({'detail':'Image not found'})
 
@@ -79,18 +72,11 @@ def run_cheating_module():
     if not model_name:
         return jsonify({'Error':'Model name not found'})
     
-    previous_model = ''
-    with open(BASE_DIR+'/model_name.txt','r') as w:
-        previous_model = w.read()
 
     try:
-        if previous_model != model_name:
-            
-            with open(BASE_DIR+'/model_name.txt','w') as w:
-                w.write(model_name)
-
-            previous_model = model_name
+        if loaded_model != model_name:
             model = YOLO(BASE_DIR+'/model/'+model_name+'.pt')
+            loaded_model = model_name
     except:
         return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.pt'+' such name does not exist'})
 
@@ -98,7 +84,7 @@ def run_cheating_module():
         #Running detection on given image
         img,list_of_products = run_inference(model)
     except:
-        return jsonify({'Error':'Error running inference ', 'MODEL NAME':model})
+        return jsonify({'Error':'Error running inference ', 'MODEL NAME':model_name, 'LOADED MODEL NAME':loaded_model,'MODEL':model})
 
 
     try:
@@ -139,7 +125,7 @@ def run_cheating_module():
         return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
     
     except:
-        return jsonify({'Error':'Error running manual stuff', 'MODEL NAME':model})
+        return jsonify({'Error':'Error running manual stuff'})
 
 
 
