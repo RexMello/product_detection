@@ -14,7 +14,7 @@ try:
 except:
     pass
 
-with open('model_name.txt','w') as w:
+with open(BASE_DIR+'/model_name.txt','w') as w:
     w.write('')
 
 model = None
@@ -32,7 +32,7 @@ app = Flask(__name__)
 CORS(app)  # Allow CORS for all routes
 
 def run_inference(model):
-    image = cv2.imread('temp.png')
+    image = cv2.imread(BASE_DIR+'/temp.png')
     results = model.predict(image, conf=0.4)
     
     things_found = []
@@ -69,7 +69,7 @@ def run_cheating_module():
     
     try:
         # save video file to disk
-        file.save('temp.png')
+        file.save(BASE_DIR+'/temp.png')
     except:
         return jsonify({'detail':'Invalid image type'})
 
@@ -80,7 +80,7 @@ def run_cheating_module():
         return jsonify({'Error':'Model name not found'})
     
     previous_model = ''
-    with open('model_name.txt','r') as w:
+    with open(BASE_DIR+'/model_name.txt','r') as w:
         previous_model = w.read()
 
     try:
@@ -94,40 +94,43 @@ def run_cheating_module():
     except:
         return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.pt'+' such name does not exist'})
 
+    try:
+        #Running detection on given image
+        img,list_of_products = run_inference(model)
 
-    #Running detection on given image
-    img,list_of_products = run_inference(model)
+        collec = db['model_datas']
+        data = collec.find()
 
-    collec = db['model_datas']
-    data = collec.find()
+        product_values = {}
+        for d in data:
+            product_values[d['detection_id']] = {'value':d['value'], 'name': d['name']}
+        
+        products = []
+        for product in list_of_products:
+            products.append(get_value(product, product_values))
+        
+        list_of_products_names = ''
+        list_of_products_values = ''
 
-    product_values = {}
-    for d in data:
-        product_values[d['detection_id']] = {'value':d['value'], 'name': d['name']}
-    
-    products = []
-    for product in list_of_products:
-        products.append(get_value(product, product_values))
-    
-    list_of_products_names = ''
-    list_of_products_values = ''
+        for product in products:
+            list_of_products_values+=', '+str(product[0])
+            list_of_products_names+=', '+str(product[1])
 
-    for product in products:
-        list_of_products_values+=', '+str(product[0])
-        list_of_products_names+=', '+str(product[1])
+        if products!=[]:
+            list_of_products_values = list_of_products_values[2:]
+            list_of_products_names = list_of_products_names[2:]
+        else:
+            list_of_products_values = 'No products found'
+            list_of_products_names = 'No products found'
 
-    if products!=[]:
-        list_of_products_values = list_of_products_values[2:]
-        list_of_products_names = list_of_products_names[2:]
-    else:
-        list_of_products_values = 'No products found'
-        list_of_products_names = 'No products found'
+        cv2.imwrite(BASE_DIR+'/output.png',img)
 
-    cv2.imwrite('output.png',img)
+        os.remove(BASE_DIR+'/temp.png')
+        
+        return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
 
-    os.remove('temp.png')
-    
-    return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
+    except:
+        return jsonify({'Error':'Error running inference '+model_name})
 
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
