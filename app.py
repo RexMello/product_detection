@@ -97,7 +97,11 @@ def run_cheating_module():
     try:
         #Running detection on given image
         img,list_of_products = run_inference(model)
+    except:
+        return jsonify({'Error':'Error running inference ', 'MODEL NAME':model})
 
+
+    try:
         collec = db['model_datas']
         data = collec.find()
 
@@ -108,7 +112,12 @@ def run_cheating_module():
         products = []
         for product in list_of_products:
             products.append(get_value(product, product_values))
-        
+    
+    except:
+        return jsonify({'Error':'Error hitting database ', 'MODEL NAME':model})
+
+
+    try:
         list_of_products_names = ''
         list_of_products_values = ''
 
@@ -128,9 +137,12 @@ def run_cheating_module():
         os.remove(BASE_DIR+'/temp.png')
         
         return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
-
+    
     except:
-        return jsonify({'Error':'Error running inference '+model_name})
+        return jsonify({'Error':'Error running manual stuff', 'MODEL NAME':model})
+
+
+
 
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
