@@ -129,7 +129,7 @@ def run_cheating_module():
         return jsonify({'Error':'Error running manual stuff'})
 
 @app.route('/detect_products_2', methods=['POST'])
-def run_cheating_module2():
+def run_cheating_module_2():
     if 'image' not in request.files:
         return jsonify({'detail':'Image not found'})
 
@@ -141,7 +141,7 @@ def run_cheating_module2():
     
     try:
         # save video file to disk
-        file.save(BASE_DIR+'/temp.png')
+        file.save('temp.png')
     except:
         return jsonify({'detail':'Invalid image type'})
 
@@ -152,7 +152,7 @@ def run_cheating_module2():
         return jsonify({'Error':'Model name not found'})
     
 
-    url = "http://54.212.1.25/detect_products"
+    url = "http://35.87.28.188/detect_products"
 
     # Define the form data parameters
     form_data = {
