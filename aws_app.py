@@ -6,7 +6,6 @@ import os
 import certifi
 from flask_cors import CORS
 from bson import ObjectId
-import requests
 
 BASE_DIR = os.getcwd()
 model = None
@@ -45,11 +44,13 @@ def run_inference(model):
             x1,y1,x2,y2 = int(b[0].item()),int(b[1].item()),int(b[2].item()), int(b[3].item())
             cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
             cv2.putText(image,thing_found+' '+str(round(confidence,2)),(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(0,255,0),1)
+            
 
     return image, things_found
 
 @app.route('/detect_products', methods=['POST'])
-def run_cheating_module_2():
+def run_cheating_module():
+    global model, loaded_model
     if 'image' not in request.files:
         return jsonify({'detail':'Image not found'})
 
@@ -61,7 +62,7 @@ def run_cheating_module_2():
     
     try:
         # save video file to disk
-        file.save('temp.png')
+        file.save(BASE_DIR+'/temp.png')
     except:
         return jsonify({'detail':'Invalid image type'})
 
@@ -72,27 +73,59 @@ def run_cheating_module_2():
         return jsonify({'Error':'Model name not found'})
     
 
-    url = "http://35.87.28.188/detect_products"
-
-    # Define the form data parameters
-    form_data = {
-        "ModelName": model_name,
-    }
-
-    files = {
-        "image": ("temp.png", open('temp.png', "rb"))
-    }
+    try:
+        if loaded_model != model_name:
+            model = YOLO(BASE_DIR+'/model/'+model_name+'.pt')
+            loaded_model = model_name
+    except:
+        return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.pt'+' such name does not exist'})
 
     try:
-        response = requests.post(url, data=form_data, files=files)
+        #Running detection on given image
+        img,list_of_products = run_inference(model)
+    except:
+        return jsonify({'Error':'Error running inference ', 'MODEL NAME':model_name, 'LOADED MODEL NAME':loaded_model})
 
-        if response.status_code == 200:
-            # If the request was successful (status code 200), you can access the response content
-            return response.json()
+
+    try:
+        collec = db['model_datas']
+        data = collec.find()
+
+        product_values = {}
+        for d in data:
+            product_values[d['detection_id']] = {'value':d['value'], 'name': d['name']}
+        
+        products = []
+        for product in list_of_products:
+            products.append(get_value(product, product_values))
+    
+    except:
+        return jsonify({'Error':'Error hitting database'})
+
+
+    try:
+        list_of_products_names = ''
+        list_of_products_values = ''
+
+        for product in products:
+            list_of_products_values+=', '+str(product[0])
+            list_of_products_names+=', '+str(product[1])
+
+        if products!=[]:
+            list_of_products_values = list_of_products_values[2:]
+            list_of_products_names = list_of_products_names[2:]
         else:
-            return jsonify({'Error':f"Failed to fetch data. Status code: {response.status_code}"})
-    except requests.exceptions.RequestException as e:
-        return jsonify({'Error':"An error occurred: "+e})
+            list_of_products_values = 'No products found'
+            list_of_products_names = 'No products found'
+
+        cv2.imwrite(BASE_DIR+'/output.png',img)
+
+        os.remove(BASE_DIR+'/temp.png')
+        
+        return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
+    
+    except:
+        return jsonify({'Error':'Error running manual stuff'})
 
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
