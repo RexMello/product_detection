@@ -1,14 +1,13 @@
 import cv2
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
-from ultralytics import YOLO
-import os
+from os import getcwd
 import certifi
 from flask_cors import CORS
 from bson import ObjectId
 import requests
 
-BASE_DIR = os.getcwd()
+BASE_DIR = getcwd()
 model = None
 loaded_model = ''
 
@@ -173,7 +172,7 @@ def get_contact():
 
 @app.route("/hello")
 def hello_world():
-    return "Hello World! "+str(os.getcwd())
+    return "Hello World! "+str(getcwd())
 
 
 if __name__ == "__main__":

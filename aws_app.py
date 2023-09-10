@@ -66,7 +66,7 @@ def run_cheating_module():
     except:
         return jsonify({'detail':'Invalid image type'})
 
-    model_name = request.form.get('ModelName')
+    model_name = 'CakeShop'
 
     #Loading model
     if not model_name:
