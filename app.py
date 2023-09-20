@@ -14,17 +14,17 @@ model = None
 class_names = None
 loaded_model = None
 
-# Construct the download link
-download_link = 'https://drive.usercontent.google.com/download?id=1QZXRbrps8SjcR_5R2ClnxlsgpX5a4M3Q&export=download&authuser=0&confirm=t&uuid=3bccbcab-6202-4aa1-8cf5-6d0c7b0ae68d&at=APZUnTWek41_WXKrPgaFIaUh4-GC:1695222256618'
-print('Downloading model')
-response = requests.get(download_link)
+# # Construct the download link
+# download_link = 'https://drive.usercontent.google.com/download?id=1QZXRbrps8SjcR_5R2ClnxlsgpX5a4M3Q&export=download&authuser=0&confirm=t&uuid=3bccbcab-6202-4aa1-8cf5-6d0c7b0ae68d&at=APZUnTWek41_WXKrPgaFIaUh4-GC:1695222256618'
+# print('Downloading model')
+# response = requests.get(download_link)
 
-if response.status_code == 200:
-    with open('model/CakeShop.onnx', 'wb') as file:
-        file.write(response.content)
-    print("Model downloaded successfully.")
-else:
-    print(f"Failed to download the model. HTTP status code: {response.status_code}")
+# if response.status_code == 200:
+#     with open('model/CakeShop.onnx', 'wb') as file:
+#         file.write(response.content)
+#     print("Model downloaded successfully.")
+# else:
+#     print(f"Failed to download the model. HTTP status code: {response.status_code}")
 
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
@@ -43,6 +43,7 @@ def run_inference(model):
     global class_names
     image = cv2.imread(BASE_DIR+'/temp.png')
     boxes, scores, class_ids = model(image)
+    print(class_ids)
 
     things_found = []
 
