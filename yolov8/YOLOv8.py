@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import onnxruntime
 
-from yolov8.utils import xywh2xyxy, draw_detections, multiclass_nms
+from yolov8.utils import xywh2xyxy, multiclass_nms
 
 
 class YOLOv8:
@@ -86,23 +86,19 @@ class YOLOv8:
         boxes = predictions[:, :4]
 
         # Scale boxes to original image dimensions
-        # boxes = self.rescale_boxes(boxes)
+        boxes = self.rescale_boxes(boxes)
         # Convert boxes to xyxy format
         boxes = xywh2xyxy(boxes)
 
         return boxes
 
-    # def rescale_boxes(self, boxes):
+    def rescale_boxes(self, boxes):
 
-    #     # Rescale boxes to original image dimensions
-    #     input_shape = np.array([self.input_width, self.input_height, self.input_width, self.input_height])
-    #     boxes = np.divide(boxes, input_shape, dtype=np.float32)
-    #     boxes *= np.array([self.img_width, self.img_height, self.img_width, self.img_height])
-    #     return boxes
-
-    def draw_detections(self, image, draw_scores=True, mask_alpha=0.4):
-        return draw_detections(image, self.boxes, self.scores,
-                               self.class_ids, mask_alpha)
+        # Rescale boxes to original image dimensions
+        input_shape = np.array([self.input_width, self.input_height, self.input_width, self.input_height])
+        boxes = np.divide(boxes, input_shape, dtype=np.float32)
+        boxes *= np.array([self.img_width, self.img_height, self.img_width, self.img_height])
+        return boxes
 
     def get_input_details(self):
         model_inputs = self.session.get_inputs()

@@ -43,7 +43,6 @@ def run_inference(model):
     global class_names
     image = cv2.imread(BASE_DIR+'/temp.png')
     boxes, scores, class_ids = model(image)
-    print(class_ids)
 
     things_found = []
 
