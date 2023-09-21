@@ -44,7 +44,7 @@ def run_cheating_module():
         return jsonify({'Error':'Model name not found'})
 
 
-    url = "http://35.87.28.188/detect_products"
+    url = "http://13.250.126.202/detect_products"
 
     # Define the form data parameters
     form_data = {
