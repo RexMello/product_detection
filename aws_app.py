@@ -1,15 +1,29 @@
+import os
 import cv2
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
-from ultralytics import YOLO
-import os
+from os import getcwd
 import certifi
 from flask_cors import CORS
-from bson import ObjectId
+from yolov8 import YOLOv8
+import requests
 
-BASE_DIR = os.getcwd()
+BASE_DIR = getcwd()
 model = None
-loaded_model = ''
+class_names = None
+loaded_model = None
+
+# Construct the download link
+download_link = 'https://drive.usercontent.google.com/download?id=1QZXRbrps8SjcR_5R2ClnxlsgpX5a4M3Q&export=download&authuser=0&confirm=t&uuid=3bccbcab-6202-4aa1-8cf5-6d0c7b0ae68d&at=APZUnTWek41_WXKrPgaFIaUh4-GC:1695222256618'
+print('Downloading model')
+response = requests.get(download_link)
+
+if response.status_code == 200:
+    with open('model/CakeShop.onnx', 'wb') as file:
+        file.write(response.content)
+    print("Model downloaded successfully.")
+else:
+    print(f"Failed to download the model. HTTP status code: {response.status_code}")
 
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
@@ -21,36 +35,32 @@ def get_value(name, data):
             return data[d]['value'], data[d]['name']
     return '', ''
 
-app = Flask(__name__)
-CORS(app)  # Allow CORS for all routes
-
 def run_inference(model):
+    global class_names
     image = cv2.imread(BASE_DIR+'/temp.png')
-    results = model.predict(image, conf=0.4)
-    
+    boxes, scores, class_ids = model(image)
+
     things_found = []
 
-    for r in results:
-        boxes = r.boxes
+    for box, score, class_id in zip(boxes, scores, class_ids):
+        x1, y1, x2, y2 = box.astype(int)
+        name = class_names[class_id]
+        text = name+' '+str(round(score,2))
 
-        for box in boxes:
-            thing_found = model.names[int(box.cls)]
-            things_found.append(thing_found)
+        cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),1)
+        cv2.putText(image,text,(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(0,255,0),1)
 
-            confidence = box.conf.item()
-            b = box.xyxy[0]
-            c = box.cls
-
-            x1,y1,x2,y2 = int(b[0].item()),int(b[1].item()),int(b[2].item()), int(b[3].item())
-            cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
-            cv2.putText(image,thing_found+' '+str(round(confidence,2)),(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(0,255,0),1)
-            
-
+        things_found.append(name)
+    
     return image, things_found
+
+app = Flask(__name__)
+CORS(app)
 
 @app.route('/detect_products', methods=['POST'])
 def run_cheating_module():
-    global model, loaded_model
+    global model, class_names, loaded_model
+
     if 'image' not in request.files:
         return jsonify({'detail':'Image not found'})
 
@@ -62,23 +72,29 @@ def run_cheating_module():
     
     try:
         # save video file to disk
-        file.save(BASE_DIR+'/temp.png')
+        file.save('temp.png')
     except:
         return jsonify({'detail':'Invalid image type'})
 
+    model_name = request.form.get('ModelName')
+    print(model_name)
     model_name = 'CakeShop'
 
     #Loading model
     if not model_name:
         return jsonify({'Error':'Model name not found'})
     
+    model_path = BASE_DIR+'/model/'+model_name+'.onnx'
+    
+    if not os.path.exists(model_path):
+        return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.onnx'+' such name does not exist'})
 
-    try:
-        if loaded_model != model_name:
-            model = YOLO(BASE_DIR+'/model/'+model_name+'.pt')
-            loaded_model = model_name
-    except:
-        return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.pt'+' such name does not exist'})
+    
+    if loaded_model != model_name:
+        model = YOLOv8(model_path, conf_thres=0.3, iou_thres=0.4)
+        with open(BASE_DIR+'/model/'+model_name+'.txt', "r") as file:
+            class_names = [line.strip() for line in file.readlines()]
+        loaded_model = model_name
 
     try:
         #Running detection on given image
@@ -119,94 +135,16 @@ def run_cheating_module():
             list_of_products_names = 'No products found'
 
         cv2.imwrite(BASE_DIR+'/output.png',img)
-
         os.remove(BASE_DIR+'/temp.png')
-        
         return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
-    
+
+        
     except:
         return jsonify({'Error':'Error running manual stuff'})
 
-@app.route("/fetch_all_data", methods=['GET'])
-def fetch_data():
-    collec = db['model_datas']
-    data = collec.find()
-    result = []
-    for d in data:
-        result.append({
-            'id': str(d['_id']),
-            'name': d['name'],
-            'value': d['value'],
-            'ModelName': d['ModelName']
-        })
-
-    return jsonify(result)
-
-@app.route("/fetch_model_names", methods=['GET'])
-def fetch_model_data():
-    collec = db['model_list']
-    data = collec.find()
-
-    result = []
-    for d in data:
-        result.append(d['name'])
-
-    return jsonify({'modelNames':result})
-
-@app.route("/fetch_single_data/<string:id_value>", methods=['GET'])
-def get_single_data(id_value):
-    collec = db['model_datas']
-    output = collec.find_one({'_id':ObjectId(id_value)})
-    if output:
-        output['_id'] = str(output['_id'])
-        return (output)
-
-    return jsonify({'detail':'not found'})
-
-@app.route("/update_data/<string:id_value>/<string:new_value>", methods=['GET'])
-def update_user_data(id_value,new_value):
-    collec = db['model_datas']
-    print('VALUE ',new_value)
-
-    output = collec.find_one({'_id':ObjectId(id_value)})
-    if not output:
-        return jsonify({'Error':'Invalid id'})
-
-    # Define the filter to identify the document to be updated
-    filter_criteria = {"_id": ObjectId(id_value)}
-
-    # Define the update operation
-    update_operation = {"$set": {"value": new_value}}
-
-    # Perform the update
-    result = collec.update_one(filter_criteria, update_operation)
-
-    print("Modified documents:", result.modified_count)
-
-    return jsonify({'detail':'success'})
-
-@app.route("/get_contact_support", methods=['GET'])
-def get_contact():
-    collec = db['contact']
-    output = collec.find()
-
-    res = ''
-    for document in output:
-        for entry in document:
-            if entry == '_id':
-                continue
-
-            res+='   |   '+entry.capitalize()+': '+document[entry]
-        break
-
-    if res != '':
-        res = res[5:]
-
-    return jsonify({'contact':res})
-
 @app.route("/hello")
 def hello_world():
-    return "Hello World! "+str(os.getcwd())
+    return "Hello World! "+str(getcwd())
 
 
 if __name__ == "__main__":
