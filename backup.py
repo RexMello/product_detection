@@ -1,4 +1,3 @@
-import cv2
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from os import getcwd
@@ -8,9 +7,6 @@ from bson import ObjectId
 import requests
 
 BASE_DIR = getcwd()
-model = None
-loaded_model = ''
-
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
@@ -22,33 +18,10 @@ def get_value(name, data):
     return '', ''
 
 app = Flask(__name__)
-CORS(app)  # Allow CORS for all routes
-
-def run_inference(model):
-    image = cv2.imread(BASE_DIR+'/temp.png')
-    results = model.predict(image, conf=0.4)
-    
-    things_found = []
-
-    for r in results:
-        boxes = r.boxes
-
-        for box in boxes:
-            thing_found = model.names[int(box.cls)]
-            things_found.append(thing_found)
-
-            confidence = box.conf.item()
-            b = box.xyxy[0]
-            c = box.cls
-
-            x1,y1,x2,y2 = int(b[0].item()),int(b[1].item()),int(b[2].item()), int(b[3].item())
-            cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
-            cv2.putText(image,thing_found+' '+str(round(confidence,2)),(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(0,255,0),1)
-
-    return image, things_found
+CORS(app)
 
 @app.route('/detect_products', methods=['POST'])
-def run_cheating_module_2():
+def run_cheating_module():
     if 'image' not in request.files:
         return jsonify({'detail':'Image not found'})
 
@@ -57,7 +30,7 @@ def run_cheating_module_2():
     # check if file is empty
     if file.filename == '':
         return jsonify({'detail':'Image not selected'})
-    
+
     try:
         # save video file to disk
         file.save('temp.png')
@@ -69,9 +42,9 @@ def run_cheating_module_2():
     #Loading model
     if not model_name:
         return jsonify({'Error':'Model name not found'})
-    
 
-    url = "http://35.87.28.188/detect_products"
+
+    url = "http://13.250.126.202/detect_products"
 
     # Define the form data parameters
     form_data = {
@@ -86,7 +59,6 @@ def run_cheating_module_2():
         response = requests.post(url, data=form_data, files=files)
 
         if response.status_code == 200:
-            # If the request was successful (status code 200), you can access the response content
             return response.json()
         else:
             return jsonify({'Error':f"Failed to fetch data. Status code: {response.status_code}"})

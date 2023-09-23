@@ -1,146 +1,188 @@
-from flask import Flask, jsonify, request
-from pymongo import MongoClient
+from flask import Flask, jsonify
 from os import getcwd
-import certifi
 from flask_cors import CORS
-from bson import ObjectId
-import requests
 
 BASE_DIR = getcwd()
 
-cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
-db = cluster["product_data"]
-
-def get_value(name, data):
-    for d in data:
-        if d == str(name):
-            return data[d]['value'], data[d]['name']
-    return '', ''
-
 app = Flask(__name__)
-CORS(app)  # Allow CORS for all routes
+CORS(app)
 
 @app.route('/detect_products', methods=['POST'])
 def run_cheating_module():
-    if 'image' not in request.files:
-        return jsonify({'detail':'Image not found'})
-
-    file = request.files['image']
-
-    # check if file is empty
-    if file.filename == '':
-        return jsonify({'detail':'Image not selected'})
-
-    try:
-        # save video file to disk
-        file.save('temp.png')
-    except:
-        return jsonify({'detail':'Invalid image type'})
-
-    model_name = request.form.get('ModelName')
-
-    #Loading model
-    if not model_name:
-        return jsonify({'Error':'Model name not found'})
-
-
-    url = "http://13.250.126.202/detect_products"
-
-    # Define the form data parameters
-    form_data = {
-        "ModelName": model_name,
-    }
-
-    files = {
-        "image": ("temp.png", open('temp.png', "rb"))
-    }
-
-    try:
-        response = requests.post(url, data=form_data, files=files)
-
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return jsonify({'Error':f"Failed to fetch data. Status code: {response.status_code}"})
-    except requests.exceptions.RequestException as e:
-        return jsonify({'Error':"An error occurred: "+e})
+    return jsonify({'Products values':'value1, value2', 'Products names': 'product1, product2'})
+    
 
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():
-    collec = db['model_datas']
-    data = collec.find()
-    result = []
-    for d in data:
-        result.append({
-            'id': str(d['_id']),
-            'name': d['name'],
-            'value': d['value'],
-            'ModelName': d['ModelName']
-        })
-
-    return jsonify(result)
+    return jsonify([
+    {
+        "ModelName": "CakeShop",
+        "id": "64f47da10b91a05d5a0392be",
+        "name": "Tong lou shao銅鑼燒",
+        "value": "1002"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f47db80b91a05d5a03a96e",
+        "name": "Honey cake蜂蜜蛋糕",
+        "value": "1008"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a1eb0b91a05d5a2a36db",
+        "name": "White bean cake白豆沙",
+        "value": "1017"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a2020b91a05d5a2a4e2e",
+        "name": "Chocolate cake巧克力饅頭",
+        "value": "1005"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a36e0b91a05d5a2bd459",
+        "name": "Red bean YG小倉羊羹",
+        "value": "1020"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a37f0b91a05d5a2be6b2",
+        "name": "Shao MT燒饅頭",
+        "value": "1007"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a38f0b91a05d5a2bf9b2",
+        "name": "Nut cake果仁蛋糕",
+        "value": "1009"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a39f0b91a05d5a2c09dd",
+        "name": "Hei zi ma su黑芝麻酥",
+        "value": "1010"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a3b90b91a05d5a2c269a",
+        "name": "Tong lou shao MS銅鑼燒麻糬",
+        "value": "1003"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a3ce0b91a05d5a2c3d25",
+        "name": "Pineapple cake鳳梨酥5入",
+        "value": "3032"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a3e10b91a05d5a2c5302",
+        "name": "Red bean cake最中",
+        "value": "3033"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a53c0b91a05d5a2dcb57",
+        "name": "Red bean cakeA最中",
+        "value": "3033"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5540b91a05d5a2de3b6",
+        "name": "Da fu Sixpcs大福6入",
+        "value": "3039"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5620b91a05d5a2df3c3",
+        "name": "Zui Zhong shell最中殼",
+        "value": "1026"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5700b91a05d5a2e0301",
+        "name": "Wet bean jam紅豆餡",
+        "value": "1027"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a57f0b91a05d5a2e1296",
+        "name": "Dry bean jam甘紅豆粒",
+        "value": "1028"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5900b91a05d5a2e2554",
+        "name": "Red suger MS赤糖麻糬",
+        "value": "1004"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a59f0b91a05d5a2e3531",
+        "name": "Lian zi MT蓮子饅頭",
+        "value": "1018"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5ae0b91a05d5a2e4551",
+        "name": "Red bean lu zi紅豆鹿子",
+        "value": "1019"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5bc0b91a05d5a2e53c6",
+        "name": "Egg yield cake蛋黃酥",
+        "value": "1015"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5cc0b91a05d5a2e6513",
+        "name": "Green bean cake綠豆椪",
+        "value": "1016"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64f4a5d90b91a05d5a2e742a",
+        "name": "Wu Long Tea YG烏龍茶羊羹",
+        "value": "1021"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "64fddebd0b91a05d5ac0a52d",
+        "name": "Lizi MT栗子饅頭",
+        "value": "1006"
+    },
+    {
+        "ModelName": "CakeShop",
+        "id": "6508119c68606251f5a8204c",
+        "name": "ZhaoNiSu棗泥酥",
+        "value": "1011"
+    }
+])
 
 @app.route("/fetch_model_names", methods=['GET'])
 def fetch_model_data():
-    collec = db['model_list']
-    data = collec.find()
 
-    result = []
-    for d in data:
-        result.append(d['name'])
-
-    return jsonify({'modelNames':result})
+    return jsonify({'modelNames':['CakeShop']})
 
 @app.route("/fetch_single_data/<string:id_value>", methods=['GET'])
-def get_single_data(id_value):
-    collec = db['model_datas']
-    output = collec.find_one({'_id':ObjectId(id_value)})
-    if output:
-        output['_id'] = str(output['_id'])
-        return (output)
-
-    return jsonify({'detail':'not found'})
+def get_single_data():
+    return jsonify({
+    "ModelName": "CakeShop",
+    "_id": "64f47da10b91a05d5a0392be",
+    "detection_id": "0",
+    "name": "Tong lou shao銅鑼燒",
+    "value": "1002"
+})
 
 @app.route("/update_data/<string:id_value>/<string:new_value>", methods=['GET'])
-def update_user_data(id_value,new_value):
-    collec = db['model_datas']
-    print('VALUE ',new_value)
-
-    output = collec.find_one({'_id':ObjectId(id_value)})
-    if not output:
-        return jsonify({'Error':'Invalid id'})
-
-    # Define the filter to identify the document to be updated
-    filter_criteria = {"_id": ObjectId(id_value)}
-
-    # Define the update operation
-    update_operation = {"$set": {"value": new_value}}
-
-    # Perform the update
-    result = collec.update_one(filter_criteria, update_operation)
-
-    print("Modified documents:", result.modified_count)
-
+def update_user_data():
     return jsonify({'detail':'success'})
 
 @app.route("/get_contact_support", methods=['GET'])
 def get_contact():
-    collec = db['contact']
-    output = collec.find()
-
-    res = ''
-    for document in output:
-        for entry in document:
-            if entry == '_id':
-                continue
-
-            res+='   |   '+entry.capitalize()+': '+document[entry]
-        break
-
-    if res != '':
-        res = res[5:]
-
-    return jsonify({'contact':res})
+    return jsonify({'contact':'emai: Rex@hotmail.com'})
 
 @app.route("/hello")
 def hello_world():
