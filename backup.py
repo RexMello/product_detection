@@ -5,6 +5,7 @@ import certifi
 from flask_cors import CORS
 from bson import ObjectId
 import requests
+from flask_talisman import Talisman
 
 BASE_DIR = getcwd()
 
@@ -18,7 +19,16 @@ def get_value(name, data):
     return '', ''
 
 app = Flask(__name__)
-CORS(app)
+#@CORS(app, resources={r"/get_contact_support": {"origins": "https://product-detection-7m0u3gsz3-rexmello.vercel.app"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
+# Configure a CSP policy that allows connections to 'https://product-detection.onrender.com'
+csp = {
+    'default-src': "'self'",
+    'connect-src': "'self' https://product-detection.onrender.com",
+}
+# Apply the CSP policy using Flask-Talisman
+Talisman(app, content_security_policy=csp)
+
 
 @app.route('/detect_products', methods=['POST'])
 def run_cheating_module():
