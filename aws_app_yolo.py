@@ -6,6 +6,7 @@ from os import getcwd
 import certifi
 from flask_cors import CORS
 from ultralytics import YOLO
+import base64
 
 BASE_DIR = getcwd()
 model = None
@@ -23,6 +24,7 @@ def get_value(name, data):
 def run_inference(model):
     image = cv2.imread(BASE_DIR+'/temp.png')
     results = model.predict(image, conf=0.4)
+    list_of_coords = []
     
     things_found = []
     for r in results:
@@ -32,11 +34,12 @@ def run_inference(model):
             things_found.append(thing_found)
             confidence = box.conf.item()
             b = box.xyxy[0]
-            c = box.cls
+            # c = box.cls
             x1,y1,x2,y2 = int(b[0].item()),int(b[1].item()),int(b[2].item()), int(b[3].item())
+            list_of_coords.append((x1,y1,x2,y2))
             cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
-            cv2.putText(image,thing_found+' '+str(round(confidence,2)),(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(0,255,0),1)
-    return image, things_found
+            cv2.putText(image,str(round(confidence,2)),(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1.5,(0,255,0),1)
+    return image, things_found, list_of_coords
 
 app = Flask(__name__)
 CORS(app)
@@ -80,7 +83,7 @@ def run_cheating_module():
 
     try:
         #Running detection on given image
-        img,list_of_products = run_inference(model)
+        img,list_of_products, list_of_coords = run_inference(model)
     except:
         return jsonify({'Error':'Error running inference ', 'MODEL NAME':model_name, 'LOADED MODEL NAME':loaded_model})
 
@@ -118,7 +121,7 @@ def run_cheating_module():
 
         cv2.imwrite(BASE_DIR+'/output.png',img)
         os.remove(BASE_DIR+'/temp.png')
-        return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
+        return jsonify({'Products values': list_of_products_values,'Products names': list_of_products_names, 'coords':list_of_coords})
 
         
     except:

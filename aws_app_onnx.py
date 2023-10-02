@@ -27,9 +27,11 @@ def run_inference(model):
     boxes, scores, class_ids = model(image)
 
     things_found = []
+    list_of_coords = []
 
     for box, score, class_id in zip(boxes, scores, class_ids):
         x1, y1, x2, y2 = box.astype(int)
+        list_of_coords.append((x1, y1, x2, y2))
         name = class_names[class_id]
         text = name+' '+str(round(score,2))
 
@@ -84,7 +86,7 @@ def run_cheating_module():
 
     try:
         #Running detection on given image
-        img,list_of_products = run_inference(model)
+        img,list_of_products, list_of_coords = run_inference(model)
     except:
         return jsonify({'Error':'Error running inference ', 'MODEL NAME':model_name, 'LOADED MODEL NAME':loaded_model})
 
@@ -122,7 +124,7 @@ def run_cheating_module():
 
         cv2.imwrite(BASE_DIR+'/output.png',img)
         os.remove(BASE_DIR+'/temp.png')
-        return jsonify({'Products values':list_of_products_values, 'Products names': list_of_products_names})
+        return jsonify({'Products values': list_of_products_values,'Products names': list_of_products_names, 'coords':list_of_coords})
 
         
     except:
