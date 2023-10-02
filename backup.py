@@ -1,13 +1,17 @@
+import os
+import cv2
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from os import getcwd
 import certifi
 from flask_cors import CORS
+from ultralytics import YOLO
+from collections import Counter
 from bson import ObjectId
-import requests
-from flask_talisman import Talisman
 
 BASE_DIR = getcwd()
+model = None
+loaded_model = None
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
@@ -18,20 +22,33 @@ def get_value(name, data):
             return data[d]['value'], data[d]['name']
     return '', ''
 
-app = Flask(__name__)
-#@CORS(app, resources={r"/get_contact_support": {"origins": "https://product-detection-7m0u3gsz3-rexmello.vercel.app"}})
-CORS(app, resources={r"/*": {"origins": "*"}})
-# Configure a CSP policy that allows connections to 'https://product-detection.onrender.com'
-csp = {
-    'default-src': "'self'",
-    'connect-src': "'self' https://product-detection.onrender.com",
-}
-# Apply the CSP policy using Flask-Talisman
-Talisman(app, content_security_policy=csp)
+def run_inference(model):
+    image = cv2.imread(BASE_DIR+'/temp.png')
+    results = model.predict(image, conf=0.4)
+    list_of_coords = []
+    
+    things_found = []
+    for r in results:
+        boxes = r.boxes
+        for box in boxes:
+            thing_found = model.names[int(box.cls)]
+            things_found.append(thing_found)
+            confidence = box.conf.item()
+            b = box.xyxy[0]
+            # c = box.cls
+            x1,y1,x2,y2 = int(b[0].item()),int(b[1].item()),int(b[2].item()), int(b[3].item())
+            list_of_coords.append((x1,y1,x2,y2))
+            cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
+            cv2.putText(image,str(round(confidence,2)),(x1,y1-5),cv2.FONT_HERSHEY_COMPLEX_SMALL,1.5,(0,255,0),1)
+    return image, things_found, list_of_coords
 
+app = Flask(__name__)
+CORS(app)
 
 @app.route('/detect_products', methods=['POST'])
 def run_cheating_module():
+    global model, class_names, loaded_model
+
     if 'image' not in request.files:
         return jsonify({'detail':'Image not found'})
 
@@ -40,7 +57,7 @@ def run_cheating_module():
     # check if file is empty
     if file.filename == '':
         return jsonify({'detail':'Image not selected'})
-
+    
     try:
         # save video file to disk
         file.save('temp.png')
@@ -48,32 +65,92 @@ def run_cheating_module():
         return jsonify({'detail':'Invalid image type'})
 
     model_name = request.form.get('ModelName')
+    print(model_name)
+    model_name = 'CakeShop'
 
     #Loading model
     if not model_name:
         return jsonify({'Error':'Model name not found'})
+    
+    model_path = BASE_DIR+'/model/'+model_name+'.pt'
+    
+    if not os.path.exists(model_path):
+        return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.pt'+' such name does not exist'})
 
-
-    url = "http://13.250.126.202/detect_products"
-
-    # Define the form data parameters
-    form_data = {
-        "ModelName": model_name,
-    }
-
-    files = {
-        "image": ("temp.png", open('temp.png', "rb"))
-    }
+    
+    if loaded_model != model_name:
+        model = YOLO(model_path)
+        loaded_model = model_name
 
     try:
-        response = requests.post(url, data=form_data, files=files)
+        #Running detection on given image
+        img,list_of_products, list_of_coords = run_inference(model)
+    except:
+        return jsonify({'Error':'Error running inference ', 'MODEL NAME':model_name, 'LOADED MODEL NAME':loaded_model})
 
-        if response.status_code == 200:
-            return response.json()
+
+    try:
+        collec = db['model_datas']
+        data = collec.find()
+
+        product_values = {}
+        for d in data:
+            product_values[d['detection_id']] = {'value':d['value'], 'name': d['name']}
+        
+        products = []
+        for product in list_of_products:
+            products.append(get_value(product, product_values))
+    
+    except:
+        return jsonify({'Error':'Error hitting database'})
+
+
+    try:
+        if products != []:
+            list_of_products_names = []
+            list_of_products_values = []
+
+            for product in products:
+                list_of_products_values.append(product[0])
+                list_of_products_names.append(product[1])
+            
+            if list_of_products_names:
+                name_counts = Counter(list_of_products_names)
+                temp = []
+                # Format and print the results
+                for name, count in name_counts.items():
+                    if count==1:
+                        formatted_name = name
+                    else:
+                        formatted_name = f"{count} x {name}"
+                    temp.append(formatted_name)
+
+                list_of_products_names = sorted(temp)
+
+            names = ''
+            values = ''
+            for name in list_of_products_names:
+                names+=name+', '
+            
+            for value in list_of_products_values:
+                values+=value+', '
+
+            list_of_products_values = list_of_products_values[2:]
+            list_of_products_names = list_of_products_names[2:]
+
         else:
-            return jsonify({'Error':f"Failed to fetch data. Status code: {response.status_code}"})
-    except requests.exceptions.RequestException as e:
-        return jsonify({'Error':"An error occurred: "+e})
+            names = 'No products found'
+            values = 'No products found'
+
+        cv2.imwrite(BASE_DIR+'/output.png',img)
+        os.remove(BASE_DIR+'/temp.png')
+
+        print(list_of_coords)
+        return jsonify({'Products values': values,'Products names': names, 'coords':list_of_coords})
+
+        
+    except:
+        return jsonify({'Error':'Error running manual stuff'})
 
 @app.route("/fetch_all_data", methods=['GET'])
 def fetch_data():

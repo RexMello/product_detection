@@ -6,6 +6,8 @@ from os import getcwd
 import certifi
 from flask_cors import CORS
 from yolov8 import YOLOv8
+from collections import Counter
+
 
 BASE_DIR = getcwd()
 model = None
@@ -40,7 +42,7 @@ def run_inference(model):
 
         things_found.append(name)
     
-    return image, things_found
+    return image, things_found, list_of_coords
 
 app = Flask(__name__)
 CORS(app)
@@ -108,23 +110,48 @@ def run_cheating_module():
 
 
     try:
-        list_of_products_names = ''
-        list_of_products_values = ''
+        if products != []:
+            list_of_products_names = []
+            list_of_products_values = []
 
-        for product in products:
-            list_of_products_values+=', '+str(product[0])
-            list_of_products_names+=', '+str(product[1])
+            for product in products:
+                list_of_products_values.append(product[0])
+                list_of_products_names.append(product[1])
+            
+            if list_of_products_names:
+                name_counts = Counter(list_of_products_names)
+                temp = []
+                # Format and print the results
+                for name, count in name_counts.items():
+                    if count==1:
+                        formatted_name = name
+                    else:
+                        formatted_name = f"{count} x {name}"
+                    temp.append(formatted_name)
 
-        if products!=[]:
+                list_of_products_names = sorted(temp)
+
+            names = ''
+            values = ''
+            for name in list_of_products_names:
+                names+=name+', '
+            
+            for value in list_of_products_values:
+                values+=value+', '
+
             list_of_products_values = list_of_products_values[2:]
             list_of_products_names = list_of_products_names[2:]
+
         else:
-            list_of_products_values = 'No products found'
-            list_of_products_names = 'No products found'
+            names = 'No products found'
+            values = 'No products found'
 
         cv2.imwrite(BASE_DIR+'/output.png',img)
         os.remove(BASE_DIR+'/temp.png')
-        return jsonify({'Products values': list_of_products_values,'Products names': list_of_products_names, 'coords':list_of_coords})
+
+        print(list_of_coords)
+
+        return jsonify({'Products values': values,'Products names': names, 'coords':list_of_coords})
 
         
     except:
