@@ -5,14 +5,15 @@ from pymongo import MongoClient
 from os import getcwd
 import certifi
 from flask_cors import CORS
-from yolov8 import YOLOv8
 from collections import Counter
-
+from yolov8 import YOLOv8
 
 BASE_DIR = getcwd()
 model = None
-class_names = None
 loaded_model = None
+model = YOLOv8('model/CakeShop.onnx', conf_thres=0.3, iou_thres=0.4)
+with open('model/CakeShop.txt', "r") as file:
+    class_names = [line.strip() for line in file.readlines()]
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
@@ -23,8 +24,8 @@ def get_value(name, data):
             return data[d]['value'], data[d]['name']
     return '', ''
 
-def run_inference(model):
-    global class_names
+def run_inference():
+    global class_names, model
     image = cv2.imread(BASE_DIR+'/temp.png')
     boxes, scores, class_ids = model(image)
 
@@ -42,7 +43,7 @@ def run_inference(model):
 
         things_found.append(name)
     
-    return image, things_found, list_of_coords
+    return things_found, list_of_coords
 
 app = Flask(__name__)
 CORS(app)
@@ -66,31 +67,12 @@ def run_cheating_module():
     except:
         return jsonify({'detail':'Invalid image type'})
 
-    model_name = request.form.get('ModelName')
-    print(model_name)
-    model_name = 'CakeShop'
-
-    #Loading model
-    if not model_name:
-        return jsonify({'Error':'Model name not found'})
-    
-    model_path = BASE_DIR+'/model/'+model_name+'.onnx'
-    
-    if not os.path.exists(model_path):
-        return jsonify({'Error':BASE_DIR+'/model/'+model_name+'.onnx'+' such name does not exist'})
-
-    
-    if loaded_model != model_name:
-        model = YOLOv8(model_path, conf_thres=0.3, iou_thres=0.4)
-        with open(BASE_DIR+'/model/'+model_name+'.txt', "r") as file:
-            class_names = [line.strip() for line in file.readlines()]
-        loaded_model = model_name
-
+    # model_name = request.form.get('ModelName')
     try:
         #Running detection on given image
-        img,list_of_products, list_of_coords = run_inference(model)
+        list_of_products, list_of_coords = run_inference()
     except:
-        return jsonify({'Error':'Error running inference ', 'MODEL NAME':model_name, 'LOADED MODEL NAME':loaded_model})
+        return jsonify({'Error':'Error running inference '})
 
 
     try:
@@ -108,8 +90,6 @@ def run_cheating_module():
     except:
         return jsonify({'Error':'Error hitting database'})
 
-
-    # try:
     if products != []:
         list_of_products_names = []
         list_of_products_values = []
@@ -146,15 +126,11 @@ def run_cheating_module():
         names = 'No products found'
         values = 'No products found'
 
-    cv2.imwrite(BASE_DIR+'/output.png',img)
     os.remove(BASE_DIR+'/temp.png')
 
-    print(list_of_coords)
-    return jsonify({'Products values': values,'Products names': names, 'coords':list_of_coords})
+    print(type(list_of_coords))
+    return jsonify({'coords':list_of_coords})
 
-    # except:
-    #     return jsonify({'Error':'Error running manual stuff'})
-    
 @app.route("/hello")
 def hello_world():
     return "Hello World! "+str(getcwd())
