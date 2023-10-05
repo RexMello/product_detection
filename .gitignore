@@ -1,7 +1,2 @@
-.vscode
-__pycache__
-product_detection_venv
-relative_images
-.vercel
-model/CakeShop.onnx
-model/CakeShop.pt
+CakeShop.onnx
+CakeShop.txt

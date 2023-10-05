@@ -1,12 +1,17 @@
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
-from os import getcwd
+from os import getcwd, remove
 import certifi
 from flask_cors import CORS
-from bson import ObjectId
-import requests
+from collections import Counter
+import datetime
+from roboflow import Roboflow
+import shutil
 
-BASE_DIR = getcwd()
+
+rf = Roboflow(api_key="3qDkbkKGa9Wf7OkF4u4y")
+project = rf.workspace().project("product-detection-tr3t3")
+model = project.version(1).model
 
 cluster = MongoClient("mongodb+srv://rex:13579007@cluster0.kku4atv.mongodb.net/?retryWrites=true&w=majority", tlsCAFile=certifi.where())
 db = cluster["product_data"]
@@ -17,68 +22,124 @@ def get_value(name, data):
             return data[d]['value'], data[d]['name']
     return '', ''
 
+def run_inference():
+    global model
+    print('RUNNING PREDICTIONS AT ',datetime.datetime.now())
+    outputs = model.predict("temp.jpg", confidence=50, overlap=40).json()
+    print('PREDICTIONS FOUND AT ',datetime.datetime.now())
+
+    things_found = []
+    list_of_coords = []
+    if outputs:
+        for output in outputs['predictions']:
+            x = int(output['x'])
+            y = int(output['y'])
+            width = int(output['width'])
+            height = int(output['height'])
+
+            x1 = x - (width/2)
+            y1 = y - (height/2)
+            x2 = x + (width/2)
+            y2 = y + (height/2)
+
+            list_of_coords.append((int(x1), int(y1), int(x2), int(y2)))
+            things_found.append(output['class'])
+        
+    return things_found, list_of_coords
+
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/detect_products', methods=['POST'])
 def run_cheating_module():
-    if 'image' not in request.files:
-        return jsonify({'detail':'Image not found'})
-
-    file = request.files['image']
-
-    # check if file is empty
-    if file.filename == '':
-        return jsonify({'detail':'Image not selected'})
-
     try:
-        # save video file to disk
-        file.save('temp.png')
+        remove('temp.jpg')
     except:
-        return jsonify({'detail':'Invalid image type'})
+        pass
 
-    model_name = request.form.get('ModelName')
+    print('STARTING AT ',datetime.datetime.now())
 
-    #Loading model
-    if not model_name:
-        return jsonify({'Error':'Model name not found'})
+    if 'image' not in request.files:
+        shutil.copy('default.jpg', 'temp.jpg')
 
+    else:
+        file = request.files['image']
+        try:
+            file.save('temp.jpg')
+        except:
+            return jsonify({'detail':'Invalid image type'})
 
-    url = "http://13.250.126.202/detect_products"
+    # model_name = request.form.get('ModelName')
+  
+    try:
+        #Running detection on given image
+        list_of_products, list_of_coords = run_inference()
+    except:
+        return jsonify({'Error':'Error running inference '})
 
-    # Define the form data parameters
-    form_data = {
-        "ModelName": model_name,
-    }
-
-    files = {
-        "image": ("temp.png", open('temp.png', "rb"))
-    }
 
     try:
-        response = requests.post(url, data=form_data, files=files)
+        collec = db['model_datas']
+        data = collec.find()
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return jsonify({'Error':f"Failed to fetch data. Status code: {response.status_code}"})
-    except requests.exceptions.RequestException as e:
-        return jsonify({'Error':"An error occurred: "+e})
+        product_values = {}
+        for d in data:
+            product_values[d['detection_id']] = {'value':d['value'], 'name': d['name']}
+        
+        products = []
+        for product in list_of_products:
+            products.append(get_value(product, product_values))
+    
+    except:
+        return jsonify({'Error':'Error hitting database'})
 
-@app.route("/fetch_all_data", methods=['GET'])
-def fetch_data():
-    collec = db['model_datas']
-    data = collec.find()
-    result = []
-    for d in data:
-        result.append({
-            'id': str(d['_id']),
-            'name': d['name'],
-            'value': d['value'],
-            'ModelName': d['ModelName']
-        })
 
-    return jsonify(result)
+    # try:
+    if products != []:
+        list_of_products_names = []
+        list_of_products_values = []
+
+        for product in products:
+            list_of_products_values.append(product[0])
+            list_of_products_names.append(product[1])
+        
+        if list_of_products_names:
+            name_counts = Counter(list_of_products_names)
+            temp = []
+            # Format and print the results
+            for name, count in name_counts.items():
+                if count==1:
+                    formatted_name = name
+                else:
+                    formatted_name = f"{count} x {name}"
+                temp.append(formatted_name)
+
+            list_of_products_names = sorted(temp)
+
+        names = ''
+        values = ''
+        for name in list_of_products_names:
+            names+=name+', '
+        
+        for value in list_of_products_values:
+            values+=value+', '
+
+        list_of_products_values = list_of_products_values[2:]
+        list_of_products_names = list_of_products_names[2:]
+        values = values[:-2]
+        names = names[:-2]
+
+    else:
+        names = 'No products found'
+        values = 'No products found'
+
+
+    print('ENDED AT ',datetime.datetime.now())
+
+    return jsonify({'Products values': values,'Products names': names, 'coords':list_of_coords})
+
+    # except:
+    #     return jsonify({'Error':'Error running manual stuff'})
 
 @app.route("/fetch_model_names", methods=['GET'])
 def fetch_model_data():
@@ -91,56 +152,6 @@ def fetch_model_data():
 
     return jsonify({'modelNames':result})
 
-@app.route("/fetch_single_data/<string:id_value>", methods=['GET'])
-def get_single_data(id_value):
-    collec = db['model_datas']
-    output = collec.find_one({'_id':ObjectId(id_value)})
-    if output:
-        output['_id'] = str(output['_id'])
-        return (output)
-
-    return jsonify({'detail':'not found'})
-
-@app.route("/update_data/<string:id_value>/<string:new_value>", methods=['GET'])
-def update_user_data(id_value,new_value):
-    collec = db['model_datas']
-    print('VALUE ',new_value)
-
-    output = collec.find_one({'_id':ObjectId(id_value)})
-    if not output:
-        return jsonify({'Error':'Invalid id'})
-
-    # Define the filter to identify the document to be updated
-    filter_criteria = {"_id": ObjectId(id_value)}
-
-    # Define the update operation
-    update_operation = {"$set": {"value": new_value}}
-
-    # Perform the update
-    result = collec.update_one(filter_criteria, update_operation)
-
-    print("Modified documents:", result.modified_count)
-
-    return jsonify({'detail':'success'})
-
-@app.route("/get_contact_support", methods=['GET'])
-def get_contact():
-    collec = db['contact']
-    output = collec.find()
-
-    res = ''
-    for document in output:
-        for entry in document:
-            if entry == '_id':
-                continue
-
-            res+='   |   '+entry.capitalize()+': '+document[entry]
-        break
-
-    if res != '':
-        res = res[5:]
-
-    return jsonify({'contact':res})
 
 @app.route("/hello")
 def hello_world():
