@@ -53,11 +53,6 @@ jobs:
         with:
           name: python-app
           path: .
-
-      - name: Log in to Azure CLI using service principal
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
           
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v2
@@ -65,4 +60,4 @@ jobs:
         with:
           app-name: 'yappi'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_BC5A63038B1E49648138F9E6CB0487A0 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_596EB45F66B44443800DAD28F7A3EDBD }}
