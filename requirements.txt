@@ -1,8 +1,8 @@
-﻿numpy
+﻿# numpy
 Flask
-Flask-Cors
-pymongo
-certifi
-gunicorn
-requests
-ultralytics
+# Flask-Cors
+# pymongo
+# certifi
+# gunicorn
+# requests
+# ultralytics
