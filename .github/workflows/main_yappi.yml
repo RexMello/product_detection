@@ -55,7 +55,7 @@ jobs:
           path: .
 
       - name: Log in to Azure CLI using service principal
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
           
@@ -65,4 +65,4 @@ jobs:
         with:
           app-name: 'yappi'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CB8B1F1A2D1A4D99A0DBCEA143DADBA0 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CA3D5CA0FE7D412EB4FBE6B7B187A33C }}
